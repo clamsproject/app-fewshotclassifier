@@ -8,3 +8,4 @@ on:
 jobs:
   call-unassign:
     uses: clamsproject/.github/.github/workflows/repo-issue-close.yml@main
+    secrets: inherit
