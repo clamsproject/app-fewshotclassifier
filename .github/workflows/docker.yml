@@ -1,0 +1,11 @@
+name: Docker Image Deployment
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Build and deploy to a docker image repository
+    uses: clamsproject/.github/.github/workflows/app-docker.yml@main
