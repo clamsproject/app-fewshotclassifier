@@ -4,11 +4,11 @@ This repository provides scaffolding for Python-based CLAMS app development. Spe
 
 1. `app.py` to write the app 
 1. `requirements.txt` to specify python dependencies
-1. `Dockerfile` to containerize the app and specify system dependencies
+1. `Containerfile` to containerize the app and specify system dependencies
 1. an empty `LICENSE` file to replace with an actual license information of the app
 1. this `README.md` file with basic instructions of app installation and execution
 1. some GH actions workflow for issue/bug-report management
-1. a GH action to build and upload docker images upon any push of tags
+1. a GH actions workflow to build and upload app images upon any push of a git tag
 
 Modify this file as needed to provide proper instructions for your users. 
 

@@ -1,6 +1,6 @@
 # Use the same base image version as the clams-python python library version
-FROM clamsproject/clams-python:x.y.z
-# See https://hub.docker.com/search?q=clams-python for more base images
+FROM ghcr.io/clamsproject/clams-python:x.y.z
+# See https://github.com/orgs/clamsproject/packages?tab=packages&q=clams-python for more base images
 
 ################################################################################
 # clams-python base images are based on debian distro
