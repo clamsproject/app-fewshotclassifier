@@ -1,6 +1,6 @@
-# app-template-python 
+# app-few-shot-classifier
 
-This repository provides scaffolding for Python-based CLAMS app development. Specifically, we contains 
+This repository provides a wrapper for using CLIP embeddings for few shot classification.
 
 1. `app.py` to write the app 
 1. `requirements.txt` to specify python dependencies
