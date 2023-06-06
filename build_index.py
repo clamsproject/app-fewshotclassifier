@@ -22,6 +22,7 @@ def add_video_segment_to_index(video_filepath, start_time, end_time, label, inde
     if not success:
         raise ValueError("Unable to extract frame from video segment")
 
+    # todo - update this to process frames in batches
     # Generate the image embedding using the CLIP model
     with torch.no_grad():
         image = processor.image_processor(frame, return_tensors="pt")
@@ -31,6 +32,7 @@ def add_video_segment_to_index(video_filepath, start_time, end_time, label, inde
     embedding = embedding.numpy()
 
     # Add the embedding to the Faiss index
+    faiss.normalize_L2(embedding)
     index.add(embedding)
 
     # add the label to the label map, the key will be the index from the index
@@ -43,7 +45,7 @@ def add_csv_to_index(csv_filepath, index_filepath, index_map_filepath):
 
     # Initialize a Faiss index with the correct dimensions
     index_dimension = 512
-    index = faiss.IndexFlatL2(index_dimension)
+    index = faiss.IndexFlatIP(index_dimension)
     index_map = {}
 
     # Process each row of the DataFrame and add the embeddings to the Faiss index

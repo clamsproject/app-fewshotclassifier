@@ -33,7 +33,7 @@ from transformers import CLIPProcessor, CLIPModel
 APP_VERSION = "0.0.1"  # todo remove this when auto-generated versions are available
 
 
-class YourApp(ClamsApp):
+class Clip(ClamsApp):
     def __init__(self):
         super().__init__()
         index_filepath = config["index_filepath"]
@@ -103,6 +103,7 @@ class YourApp(ClamsApp):
             image_features = self.model.get_image_features(image["pixel_values"])
 
         # calculate cosine similarity
+        faiss.normalize_L2(image_features)
         D, I = self.index.search(image_features, k=1)
         print (self.index_map[str(I[0][0])], D[0][0])
         # if the score is above threshold get the label from self.label_map
@@ -209,7 +210,7 @@ if __name__ == "__main__":
     parser.add_argument("--production", action="store_true", help="run gunicorn server")
     parsed_args = parser.parse_args()
 
-    app = YourApp()
+    app = Clip()
     http_app = Restifier(app, port=int(parsed_args.port))
     if parsed_args.production:
         http_app.serve_production()
