@@ -1,39 +1,22 @@
-"""
-This CLAMS app is instantiated with a reference to a data source with few shot examples.
-There are two options for the data source:
-1. A directory of video files.
-2. A numpy file containing video features.
-
-The app also requires a csv containing video annotations with the following columns:
-    - video_filepath: path to the video file
-    - start_time: start time of the video segment
-    - end_time: end time of the video segment
-    - label: label of the video segment
-    In this case, the app will use the video segments and labels as few shot examples.
-
-If the app is instantiated with a directory of video files, the app will extract video features
-and save them to the numpy array.
-
-The app will calculate cosine similarity against the video features and return the labels of the top k most similar.
-"""
-
 import argparse
-import json
-from config import config
 from typing import Union
+
+# mostly likely you'll need these modules/classes
+from clams import ClamsApp, Restifier
+from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
+
+from config import config
+import json
 
 import cv2
 import torch
-from clams import ClamsApp, Restifier, AppMetadata
-from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
 import faiss
 import build_index
 from transformers import CLIPProcessor, CLIPModel
 
-APP_VERSION = "0.0.1"  # todo remove this when auto-generated versions are available
-
 
 class Clip(ClamsApp):
+
     def __init__(self):
         super().__init__()
         index_filepath = config["index_filepath"]
@@ -52,49 +35,10 @@ class Clip(ClamsApp):
         self.processor = CLIPProcessor.from_pretrained(config["model_name"])
 
     def _appmetadata(self):
-        metadata = {
-            "name": "Few Shot Classification",
-            "description": "This tool uses a vision model to classify video segments by comparing them to examples",
-            "app_version": "placeholder",  # this will be removed with auto-generated versions (currently in dev)
-            "app_license": "MIT",
-            "url": f"http://mmif.clams.ai/apps/few_shot/{APP_VERSION}",
-            "identifier": f"http://mmif.clams.ai/apps/few_shot/{APP_VERSION}",
-            "input": [{"@type": DocumentTypes.VideoDocument, "required": True}],
-            "output": [
-                {
-                    "@type": AnnotationTypes.TimeFrame,
-                    "properties": {"frameType": "string"},
-                },
-            ],
-            "parameters": [
-                {
-                    "name": "timeUnit",
-                    "type": "string",
-                    "choices": ["frames", "milliseconds"],
-                    "default": "milliseconds",
-                    "description": "Unit for output typeframe.",
-                },
-                {
-                    "name": "sampleRatio",
-                    "type": "integer",
-                    "default": "10",
-                    "description": "Frequency to sample frames.",
-                },
-                {
-                    "name": "minFrameCount",
-                    "type": "integer",
-                    "default": "10",  # minimum value = 1 todo how to include minimum
-                    "description": "Minimum number of frames required for a timeframe to be included in the output",
-                },
-                {
-                    "name": "threshold",
-                    "type": "number",
-                    "default": ".5",
-                    "description": "Threshold from  0-1, lower accepts more potential labels.",
-                },
-            ],
-        }
-        return AppMetadata(**metadata)
+        # see https://sdk.clams.ai/autodoc/clams.app.html#clams.app.ClamsApp._load_appmetadata
+        # Also check out ``metadata.py`` in this directory. 
+        # When using the ``metadata.py`` leave this do-nothing "pass" method here. 
+        pass
 
     def get_label(self, frame, threshold):
         # process the frame with the CLIP model
@@ -188,7 +132,7 @@ class Clip(ClamsApp):
             if timeframe["label"] == "None":
                 continue
             timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)
-            
+
             # if the timeUnit is milliseconds, convert the start and end seconds to milliseconds
             if unit == "milliseconds":
                 timeframe_annotation.add_property("start", timeframe["start_seconds"])

@@ -4,5 +4,5 @@ config = {
     "threshold": 0.9,
     "model_name": "openai/clip-vit-base-patch32",
     "build": False,
-    "index_filepath":"index.faiss",
+    "index_filepath": "index.faiss",
   }

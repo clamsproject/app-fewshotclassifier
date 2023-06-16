@@ -1,2 +1,11 @@
 # Make sure clams-python version is explicitly specified, at least the lower bound
-clams-python
+clams-python==1.0.3
+
+opencv-python~=4.7.0.72
+numpy~=1.23.5
+torch~=2.0.1
+transformers~=4.24.0
+tqdm~=4.65.0
+faiss-cpu~=1.7.4
+pandas~=2.0.2
+Pillow~=9.5.0
