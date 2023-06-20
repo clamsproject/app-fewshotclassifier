@@ -1,4 +1,6 @@
 import json
+import random
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -41,7 +43,7 @@ def add_video_segment_to_index(video_filepath, start_time, end_time, label, inde
 
 
 # Define a function to process a CSV file containing video segment information
-def add_csv_to_index(csv_filepath, index_filepath, index_map_filepath, include_unlabeled=True):
+def add_csv_to_index(csv_filepath, index_filepath, index_map_filepath, num_negative_samples=100):
     # Load the CSV file into a Pandas DataFrame
     df = pd.read_csv(csv_filepath)
 
@@ -50,14 +52,34 @@ def add_csv_to_index(csv_filepath, index_filepath, index_map_filepath, include_u
     index = faiss.IndexFlatIP(index_dimension)
     index_map = {}
 
+    # Get the total duration of the video
+    cap = cv2.VideoCapture(media_path_dict()[df.iloc[0]["filename"]])
+    total_msec = cap.get(cv2.CAP_PROP_POS_MSEC)
+    total_sec = total_msec / 1000.0
+    cap.release()
+
+    # Generate the list of annotated segments
+    annotated_segments = [(row["start"], row["end"]) for _, row in df.iterrows()]
+
+    # Add a buffer around the annotated segments
+    buffer = 5  # in seconds
+    buffered_segments = [(max(0, start - buffer), min(end + buffer, total_sec)) for start, end in annotated_segments]
+
+    # Potential negative sample timestamps
+    potential_negatives = [i for i in range(int(total_sec)) if
+                           not any(start <= i <= end for start, end in buffered_segments)]
+
+    # Randomly select timestamps for negative samples
+    negative_samples = random.sample(potential_negatives, min(num_negative_samples, len(potential_negatives)))
+
     # Process each row of the DataFrame and add the embeddings to the Faiss index
     for _, row in tqdm.tqdm(df.iterrows()):
-        label = row.get("label", None)
-
-        if label is None and not include_unlabeled:
-            continue
-
+        label = row.get("label", "chyron")
         add_video_segment_to_index(row["filename"], row["start"], row["end"], label, index, index_map)
+
+    # Add negative samples to df
+    for sample in negative_samples:
+        add_video_segment_to_index(df.iloc[0]["filename"], sample, sample, None, index, index_map)
 
     # Save the Faiss index to disk
     faiss.write_index(index, index_filepath)
