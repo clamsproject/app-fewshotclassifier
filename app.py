@@ -44,12 +44,13 @@ class Clip(ClamsApp):
         # process the frame with the CLIP model
         with torch.no_grad():
             #images = self.processor.image_processor(frames, return_tensors="pt")
-            images = self.processor(frames, return_tensors="pt")
+            images = self.processor(images=frames, return_tensors="pt")
             image_features = self.model.get_image_features(images["pixel_values"])
 
         print("convert to numpy")
         # Convert to numpy array
         image_features_np = image_features.detach().cpu().numpy()
+        print(image_features_np.shape)
         print("calculate similarity")
         # calculate cosine similarity
         faiss.normalize_L2(image_features_np)   # Not getting past this
@@ -73,7 +74,7 @@ class Clip(ClamsApp):
         sample_ratio = int(kwargs.get("sampleRatio", 10))
         min_duration = int(kwargs.get("minFrameCount", 10))
         threshold = 0.5 if "threshold" not in kwargs else float(kwargs["threshold"])
-        batch_size = 1
+        batch_size = 2
         cutoff_minutes = 1
         print("running chyrondetection")
 
@@ -89,7 +90,7 @@ class Clip(ClamsApp):
                 break
             frames = []
             frames_counter = []
-            for _ in range(batch_size):
+            for _ in range(batch_size*sample_ratio):
                 ret, frame = cap.read()
                 if not ret:
                     break
