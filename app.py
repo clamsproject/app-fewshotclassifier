@@ -60,6 +60,7 @@ class Clip(ClamsApp):
         for i, score in zip(I[0], D[0]):
             if score > threshold:
                 labels_scores.append((self.index_map[str(i)], score))
+                print("=============IN CHYRON=============")
             else:
                 labels_scores.append((None, None))
         return labels_scores
@@ -67,9 +68,9 @@ class Clip(ClamsApp):
     def run_chyrondetection(self, video_filename, **kwargs):
         sample_ratio = int(kwargs.get("sampleRatio", 10))
         min_duration = int(kwargs.get("minFrameCount", 10))
-        threshold = 0.95 if "threshold" not in kwargs else float(kwargs["threshold"])
-        batch_size = 2
-        cutoff_minutes = 15
+        threshold = 0.9 if "threshold" not in kwargs else float(kwargs["threshold"])
+        batch_size = 10
+        cutoff_minutes = 3.5
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
@@ -95,6 +96,7 @@ class Clip(ClamsApp):
                 break
             # process batch of frames
             labels_scores = self.get_label(frames, threshold)
+            print(f"Frames: {frames_counter[0]} - {frames_counter[batch_size-1]}")
             for (label, score), frame_counter in zip(labels_scores, frames_counter):
                 result = label == "chyron"
                 if result:  # has chyron
