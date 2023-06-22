@@ -49,7 +49,6 @@ class Clip(ClamsApp):
 
         # Convert to numpy array
         image_features_np = image_features.detach().cpu().numpy()
-        print(image_features_np.shape)
         # calculate cosine similarity
         faiss.normalize_L2(image_features_np)
         D, I = self.index.search(image_features_np, k=1)
@@ -63,16 +62,14 @@ class Clip(ClamsApp):
                 labels_scores.append((self.index_map[str(i)], score))
             else:
                 labels_scores.append((None, None))
-        print("return labels_scores")
         return labels_scores
 
     def run_chyrondetection(self, video_filename, **kwargs):
         sample_ratio = int(kwargs.get("sampleRatio", 10))
         min_duration = int(kwargs.get("minFrameCount", 10))
-        threshold = 0.5 if "threshold" not in kwargs else float(kwargs["threshold"])
+        threshold = 0.95 if "threshold" not in kwargs else float(kwargs["threshold"])
         batch_size = 2
-        cutoff_minutes = 1
-        print("running chyrondetection")
+        cutoff_minutes = 15
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
@@ -97,18 +94,21 @@ class Clip(ClamsApp):
             if not frames:
                 break
             # process batch of frames
-            print("processing")
             labels_scores = self.get_label(frames, threshold)
             for (label, score), frame_counter in zip(labels_scores, frames_counter):
                 result = label == "chyron"
                 if result:  # has chyron
                     if not in_chyron:
                         in_chyron = True
+                        chyron_scores = [score]
                         start_frame = frame_counter
                         start_seconds = cap.get(cv2.CAP_PROP_POS_MSEC)
+                    else:
+                        chyron_scores.append(score)
                 else:
                     if in_chyron:
                         in_chyron = False
+                        avg_score = sum(chyron_scores) / len(chyron_scores)
                         if frame_counter - start_frame > min_duration:
                             chyrons.append(
                                 {
@@ -117,7 +117,7 @@ class Clip(ClamsApp):
                                     "start_seconds": start_seconds,
                                     "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
                                     "label": label,
-                                    "score": float(score),
+                                    "score": float(avg_score),
                                 }
                             )
         # If  last frames are in_chyron
