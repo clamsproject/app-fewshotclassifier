@@ -122,13 +122,14 @@ class Clip(ClamsApp):
                             )
         # If  last frames are in_chyron
         if in_chyron:
+            avg_score = sum(chyron_scores) / len(chyron_scores)
             chyrons.append({
                 "start_frame": start_frame,
                 "end_frame": counter,
                 "start_seconds": start_seconds,
                 "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
                 "label": label,
-                "score": float(score),
+                "score": float(avg_score),
             })
         return chyrons
 
