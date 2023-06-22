@@ -39,7 +39,7 @@ def appmetadata() -> AppMetadata:
     metadata.add_parameter(name='minFrameCount', type='integer', default='10',
                            description='Minimum number of frames required for a timeframe to be included in the output'
                                        'with a minimum value of 1')
-    metadata.add_parameter(name='threshold', type='number', default='.5',
+    metadata.add_parameter(name='threshold', type='number', default='.95',
                            description='Threshold from 0-1, lower accepts more potential labels.')
 
     return metadata
