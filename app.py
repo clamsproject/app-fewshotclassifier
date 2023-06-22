@@ -47,16 +47,12 @@ class Clip(ClamsApp):
             images = self.processor(images=frames, return_tensors="pt")
             image_features = self.model.get_image_features(images["pixel_values"])
 
-        print("convert to numpy")
         # Convert to numpy array
         image_features_np = image_features.detach().cpu().numpy()
         print(image_features_np.shape)
-        print("calculate similarity")
         # calculate cosine similarity
-        faiss.normalize_L2(image_features_np)   # Not getting past this
-        print("normalized")
+        faiss.normalize_L2(image_features_np)
         D, I = self.index.search(image_features_np, k=1)
-        print("index searched")
 
         print(self.index_map[str(I[0][0])], D[0][0])
 
@@ -103,7 +99,7 @@ class Clip(ClamsApp):
             # process batch of frames
             print("processing")
             labels_scores = self.get_label(frames, threshold)
-            for label, score, frame_counter in zip(labels_scores, frames_counter):
+            for (label, score), frame_counter in zip(labels_scores, frames_counter):
                 result = label == "chyron"
                 if result:  # has chyron
                     if not in_chyron:
