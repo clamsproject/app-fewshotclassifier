@@ -40,26 +40,37 @@ class Clip(ClamsApp):
         # When using the ``metadata.py`` leave this do-nothing "pass" method here. 
         pass
 
-    def get_label(self, frame, threshold):
+    def get_label(self, frames, threshold):
         # process the frame with the CLIP model
         with torch.no_grad():
-            image = self.processor.image_processor(frame, return_tensors="pt")
-            image_features = self.model.get_image_features(image["pixel_values"])
+            #images = self.processor.image_processor(frames, return_tensors="pt")
+            images = self.processor(images=frames, return_tensors="pt")
+            image_features = self.model.get_image_features(images["pixel_values"])
 
+        # Convert to numpy array
+        image_features_np = image_features.detach().cpu().numpy()
         # calculate cosine similarity
-        faiss.normalize_L2(image_features)
-        D, I = self.index.search(image_features, k=1)
-        print (self.index_map[str(I[0][0])], D[0][0])
-        # if the score is above threshold get the label from self.label_map
-        if D[0][0] > threshold:
-            return self.index_map[str(I[0][0])], D[0][0]
-        else:
-            return None, None
+        faiss.normalize_L2(image_features_np)
+        D, I = self.index.search(image_features_np, k=1)
+
+        print(self.index_map[str(I[0][0])], D[0][0])
+
+        # get the labels from self.label_map
+        labels_scores = []
+        for i, score in zip(I[0], D[0]):
+            if score > threshold:
+                labels_scores.append((self.index_map[str(i)], score))
+                print("=============IN CHYRON=============")
+            else:
+                labels_scores.append((None, None))
+        return labels_scores
 
     def run_chyrondetection(self, video_filename, **kwargs):
         sample_ratio = int(kwargs.get("sampleRatio", 10))
         min_duration = int(kwargs.get("minFrameCount", 10))
-        threshold = 0.5 if "threshold" not in kwargs else float(kwargs["threshold"])
+        threshold = 0.9 if "threshold" not in kwargs else float(kwargs["threshold"])
+        batch_size = 10
+        cutoff_minutes = 3.5
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
@@ -69,48 +80,59 @@ class Clip(ClamsApp):
         start_seconds = None
         score = 0
         while True:
-            ret, frame = cap.read()
-            if not ret:
+            if counter > 30 * 60 * cutoff_minutes:  # Stop processing after cutoff
                 break
-            if counter > 30 * 60 * 1:  # 1 hour
-                if in_chyron:
-                    if counter - start_frame > min_duration:
-                        chyrons.append(
-                            {
-                                "start_frame": start_frame,
-                                "end_frame": counter,
-                                "start_seconds": start_seconds,
-                                "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
-                                "label": label,
-                                "score": float(score),
-                            }
-                        )
+            frames = []
+            frames_counter = []
+            for _ in range(batch_size*sample_ratio):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if counter % sample_ratio == 0:
+                    frames.append(frame)
+                    frames_counter.append(counter)
+                counter += 1
+            if not frames:
                 break
-            if counter % sample_ratio == 0:
-                previous_score = score
-                print (cap.get(cv2.CAP_PROP_POS_MSEC))
-                label, score = self.get_label(frame, threshold)
+            # process batch of frames
+            labels_scores = self.get_label(frames, threshold)
+            print(f"Frames: {frames_counter[0]} - {frames_counter[batch_size-1]}")
+            for (label, score), frame_counter in zip(labels_scores, frames_counter):
                 result = label == "chyron"
                 if result:  # has chyron
                     if not in_chyron:
                         in_chyron = True
-                        start_frame = counter
+                        chyron_scores = [score]
+                        start_frame = frame_counter
                         start_seconds = cap.get(cv2.CAP_PROP_POS_MSEC)
+                    else:
+                        chyron_scores.append(score)
                 else:
                     if in_chyron:
                         in_chyron = False
-                        if counter - start_frame > min_duration:
+                        avg_score = sum(chyron_scores) / len(chyron_scores)
+                        if frame_counter - start_frame > min_duration:
                             chyrons.append(
                                 {
                                     "start_frame": start_frame,
-                                    "end_frame": counter,
+                                    "end_frame": frame_counter,
                                     "start_seconds": start_seconds,
                                     "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
                                     "label": label,
-                                    "score": float(previous_score),
+                                    "score": float(avg_score),
                                 }
                             )
-            counter += 1
+        # If  last frames are in_chyron
+        if in_chyron:
+            avg_score = sum(chyron_scores) / len(chyron_scores)
+            chyrons.append({
+                "start_frame": start_frame,
+                "end_frame": counter,
+                "start_seconds": start_seconds,
+                "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
+                "label": label,
+                "score": float(avg_score),
+            })
         return chyrons
 
     def _annotate(self, mmif: Union[str, dict, Mmif], **kwargs) -> Mmif:
