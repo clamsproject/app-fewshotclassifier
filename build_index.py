@@ -13,8 +13,10 @@ model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
 # Define a function to extract features from a video segment and add them to a Faiss index
-def add_video_segment_to_index(video_filepath, start_time, end_time, label, index, label_map):
-    full_filepath = media_path_dict()[video_filepath]
+def add_video_segment_to_index(guid, start_time, end_time, label, index, label_map):
+    full_filepath = media_path_dict().get(guid)
+    if full_filepath is None:
+        raise ValueError(f"No file path found for guid {guid}")
     # Load the video and extract a frame from the specified time segment
     cap = cv2.VideoCapture(full_filepath)
     cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000)
@@ -50,8 +52,9 @@ def add_csv_to_index(csv_filepath, index_filepath, index_map_filepath):
 
     # Process each row of the DataFrame and add the embeddings to the Faiss index
     for _, row in tqdm.tqdm(df.iterrows()):
-        label = row.get("label", "chyron")
-        add_video_segment_to_index(row["filename"], row["start"], row["end"], label, index, index_map)
+        guid = row["guid"]
+        label = row.get("label", None)
+        add_video_segment_to_index(guid, row["start"], row["end"], label, index, index_map)
 
     # Save the Faiss index to disk
     faiss.write_index(index, index_filepath)

@@ -1,39 +1,22 @@
-"""
-This CLAMS app is instantiated with a reference to a data source with few shot examples.
-There are two options for the data source:
-1. A directory of video files.
-2. A numpy file containing video features.
-
-The app also requires a csv containing video annotations with the following columns:
-    - video_filepath: path to the video file
-    - start_time: start time of the video segment
-    - end_time: end time of the video segment
-    - label: label of the video segment
-    In this case, the app will use the video segments and labels as few shot examples.
-
-If the app is instantiated with a directory of video files, the app will extract video features
-and save them to the numpy array.
-
-The app will calculate cosine similarity against the video features and return the labels of the top k most similar.
-"""
-
 import argparse
-import json
-from config import config
 from typing import Union
+
+# mostly likely you'll need these modules/classes
+from clams import ClamsApp, Restifier
+from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
+
+from config import config
+import json
 
 import cv2
 import torch
-from clams import ClamsApp, Restifier, AppMetadata
-from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
 import faiss
 import build_index
 from transformers import CLIPProcessor, CLIPModel
 
-APP_VERSION = "0.0.1"  # todo remove this when auto-generated versions are available
-
 
 class Clip(ClamsApp):
+
     def __init__(self):
         super().__init__()
         index_filepath = config["index_filepath"]
@@ -52,122 +35,105 @@ class Clip(ClamsApp):
         self.processor = CLIPProcessor.from_pretrained(config["model_name"])
 
     def _appmetadata(self):
-        metadata = {
-            "name": "Few Shot Classification",
-            "description": "This tool uses a vision model to classify video segments by comparing them to examples",
-            "app_version": "placeholder",  # this will be removed with auto-generated versions (currently in dev)
-            "app_license": "MIT",
-            "url": f"http://mmif.clams.ai/apps/few_shot/{APP_VERSION}",
-            "identifier": f"http://mmif.clams.ai/apps/few_shot/{APP_VERSION}",
-            "input": [{"@type": DocumentTypes.VideoDocument, "required": True}],
-            "output": [
-                {
-                    "@type": AnnotationTypes.TimeFrame,
-                    "properties": {"frameType": "string"},
-                },
-            ],
-            "parameters": [
-                {
-                    "name": "timeUnit",
-                    "type": "string",
-                    "choices": ["frames", "milliseconds"],
-                    "default": "milliseconds",
-                    "description": "Unit for output typeframe.",
-                },
-                {
-                    "name": "sampleRatio",
-                    "type": "integer",
-                    "default": "10",
-                    "description": "Frequency to sample frames.",
-                },
-                {
-                    "name": "minFrameCount",
-                    "type": "integer",
-                    "default": "10",  # minimum value = 1 todo how to include minimum
-                    "description": "Minimum number of frames required for a timeframe to be included in the output",
-                },
-                {
-                    "name": "threshold",
-                    "type": "number",
-                    "default": ".5",
-                    "description": "Threshold from  0-1, lower accepts more potential labels.",
-                },
-            ],
-        }
-        return AppMetadata(**metadata)
+        # see https://sdk.clams.ai/autodoc/clams.app.html#clams.app.ClamsApp._load_appmetadata
+        # Also check out ``metadata.py`` in this directory. 
+        # When using the ``metadata.py`` leave this do-nothing "pass" method here. 
+        pass
 
-    def get_label(self, frame, threshold):
+    def get_label(self, frames, threshold):
         # process the frame with the CLIP model
         with torch.no_grad():
-            image = self.processor.image_processor(frame, return_tensors="pt")
-            image_features = self.model.get_image_features(image["pixel_values"])
+            #images = self.processor.image_processor(frames, return_tensors="pt")
+            images = self.processor(images=frames, return_tensors="pt")
+            image_features = self.model.get_image_features(images["pixel_values"])
 
+        # Convert to numpy array
+        image_features_np = image_features.detach().cpu().numpy()
         # calculate cosine similarity
-        faiss.normalize_L2(image_features)
-        D, I = self.index.search(image_features, k=1)
-        print (self.index_map[str(I[0][0])], D[0][0])
-        # if the score is above threshold get the label from self.label_map
-        if D[0][0] > threshold:
-            return self.index_map[str(I[0][0])], D[0][0]
-        else:
-            return None, None
+        faiss.normalize_L2(image_features_np)
+        D, I = self.index.search(image_features_np, k=1)
 
-    def run_chyrondetection(self, video_filename, **kwargs):
+        print(self.index_map[str(I[0][0])], D[0][0])
+
+        # get the labels from self.label_map
+        labels_scores = []
+        for i, score in zip(I[0], D[0]):
+            if score > threshold:
+                labels_scores.append((self.index_map[str(i)], score))
+                print("=============IN TARGET=============")
+            else:
+                labels_scores.append((None, None))
+        return labels_scores
+
+    def run_targetdetection(self, video_filename, **kwargs):
         sample_ratio = int(kwargs.get("sampleRatio", 10))
         min_duration = int(kwargs.get("minFrameCount", 10))
-        threshold = 0.5 if "threshold" not in kwargs else float(kwargs["threshold"])
+        threshold = 0.9 if "threshold" not in kwargs else float(kwargs["threshold"])
+        batch_size = 10
+        cutoff_minutes = 3.5
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
-        chyrons = []
-        in_chyron = False
-        start_frame = None
-        start_seconds = None
-        score = 0
+        rich_timeframes = []
+        active_targets = {}  # keys are labels, values are dicts with "start_frame", "start_seconds", "target_scores"
         while True:
-            ret, frame = cap.read()
-            if not ret:
+            if counter > 30 * 60 * cutoff_minutes:  # Stop processing after cutoff
                 break
-            if counter > 30 * 60 * 1:  # 1 hour
-                if in_chyron:
-                    if counter - start_frame > min_duration:
-                        chyrons.append(
-                            {
-                                "start_frame": start_frame,
-                                "end_frame": counter,
-                                "start_seconds": start_seconds,
-                                "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
-                                "label": label,
-                                "score": float(score),
-                            }
-                        )
+            frames = []
+            frames_counter = []
+            for _ in range(batch_size*sample_ratio):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if counter % sample_ratio == 0:
+                    frames.append(frame)
+                    frames_counter.append(counter)
+                counter += 1
+            if not frames:
                 break
-            if counter % sample_ratio == 0:
-                previous_score = score
-                print (cap.get(cv2.CAP_PROP_POS_MSEC))
-                label, score = self.get_label(frame, threshold)
-                result = label == "chyron"
-                if result:  # has chyron
-                    if not in_chyron:
-                        in_chyron = True
-                        start_frame = counter
-                        start_seconds = cap.get(cv2.CAP_PROP_POS_MSEC)
+            # process batch of frames
+            labels_scores = self.get_label(frames, threshold)
+            print(f"Frames: {frames_counter[0]} - {frames_counter[batch_size-1]}")
+            for (detected_label, score), frame_counter in zip(labels_scores, frames_counter):
+                if detected_label is not None:  # has any label
+                    if detected_label not in active_targets:
+                        active_targets[detected_label] = {
+                            "start_frame": frame_counter,
+                            "start_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
+                            "target_scores": [score],
+                        }
+                    else:
+                        active_targets[detected_label]["target_scores"].append(score)
                 else:
-                    if in_chyron:
-                        in_chyron = False
-                        if counter - start_frame > min_duration:
-                            chyrons.append(
+                    # process and reset all active_targets
+                    for active_label, target_info in active_targets.items():
+                        avg_score = sum(target_info["target_scores"]) / len(target_info["target_scores"])
+                        if frame_counter - target_info["start_frame"] > min_duration:
+                            rich_timeframes.append(
                                 {
-                                    "start_frame": start_frame,
-                                    "end_frame": counter,
-                                    "start_seconds": start_seconds,
+                                    "start_frame": target_info["start_frame"],
+                                    "end_frame": frame_counter,
+                                    "start_seconds": target_info["start_seconds"],
                                     "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
-                                    "label": label,
-                                    "score": float(previous_score),
+                                    "label": active_label,
+                                    "score": float(avg_score),
                                 }
                             )
-            counter += 1
-        return chyrons
+                    active_targets = {}  # reset active targets
+
+                # process any remaining active_targets at the end
+            if active_targets:
+                for active_label, target_info in active_targets.items():
+                    avg_score = sum(target_info["target_scores"]) / len(target_info["target_scores"])
+                    rich_timeframes.append({
+                        "start_frame": target_info["start_frame"],
+                        "end_frame": counter,
+                        "start_seconds": target_info["start_seconds"],
+                        "end_seconds": cap.get(cv2.CAP_PROP_POS_MSEC),
+                        "label": active_label,
+                        "score": float(avg_score),
+                    })
+        return rich_timeframes
 
     def _annotate(self, mmif: Union[str, dict, Mmif], **kwargs) -> Mmif:
         # load file location from mmif
@@ -181,14 +147,14 @@ class Clip(ClamsApp):
             timeUnit=unit,
             document=mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0].id,
         )
-        timeframe_list = self.run_chyrondetection(video_filename, **kwargs)
+        timeframe_list = self.run_targetdetection(video_filename, **kwargs)
         # add all the timeframes as annotations to the new view
         for timeframe in timeframe_list:
             # skip timeframes that are labeled as "None"
             if timeframe["label"] == "None":
                 continue
             timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)
-            
+
             # if the timeUnit is milliseconds, convert the start and end seconds to milliseconds
             if unit == "milliseconds":
                 timeframe_annotation.add_property("start", timeframe["start_seconds"])
