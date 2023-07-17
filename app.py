@@ -43,7 +43,6 @@ class Clip(ClamsApp):
     def get_label(self, frames, threshold):
         # process the frame with the CLIP model
         with torch.no_grad():
-            #images = self.processor.image_processor(frames, return_tensors="pt")
             images = self.processor(images=frames, return_tensors="pt")
             image_features = self.model.get_image_features(images["pixel_values"])
 
@@ -70,7 +69,7 @@ class Clip(ClamsApp):
         min_duration = int(kwargs.get("minFrameCount", 10))
         threshold = 0.9 if "threshold" not in kwargs else float(kwargs["threshold"])
         batch_size = 10
-        cutoff_minutes = 3.5
+        cutoff_minutes = 10
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
@@ -78,6 +77,7 @@ class Clip(ClamsApp):
         active_targets = {}  # keys are labels, values are dicts with "start_frame", "start_seconds", "target_scores"
         while True:
             if counter > 30 * 60 * cutoff_minutes:  # Stop processing after cutoff
+                print ("stopping at frmae number ", counter)
                 break
             frames = []
             frames_counter = []
