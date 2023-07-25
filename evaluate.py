@@ -61,7 +61,7 @@ def run_chyrondetection(video_filename, index, index_map, fold_number=0, **kwarg
         writer.writeheader()
 
         cap = cv2.VideoCapture(full_filepath)
-        fps = 29.97 # todo - get this from the video
+        fps = cap.get(cv2.CAP_PROP_FPS)
         counter = 0
         chyrons = []
         in_chyron = False
@@ -178,14 +178,14 @@ if __name__ == "__main__":
 
         # for each fold, divide the dataset into training and testing sets
         for fold, (train_index, test_index) in enumerate(kf.split(list(dataset_dict.keys()))):
-            print (f"Fold {fold}")
+            print(f"Fold {fold}")
             train_df = pd.DataFrame()
             # for each video in the training set, get the embeddings and add them to the index
             for i, filename in enumerate(dataset_dict.keys()):
                 if i in train_index:
                     video_df = pd.DataFrame(dataset_dict[filename])
                     train_df = pd.concat([train_df, video_df], ignore_index=True)
-            fold_index_filename = f"slate_index_{fold}.faiss" # todo - un-hardcode this
+            fold_index_filename = f"index_{fold}.faiss"
             fold_index_map_filename = f"slate_index_{fold}.json"
             index, index_map = build_or_load(train_df, fold_index_filename, fold_index_map_filename, use_cache=True)
             # for each video in the testing set, get the embeddings and compare them to the embeddings in the index
