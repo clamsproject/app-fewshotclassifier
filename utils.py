@@ -1,9 +1,9 @@
 import pathlib
 
-def media_path_dict(root="/data/clams/wgbh/NewsHour"):
-    all_paths = pathlib.Path(root).glob("**/*.mp4")
+def media_path_dict(root="/data/clams/"):
+    all_paths = list(pathlib.Path(root).glob("**/*.mp4"))
     full_filename_dict = {p.name: str(p.absolute()) for p in all_paths}
-    guid_dict = {p.stem.split('.')[0]: str(p.absolute()) for p in all_paths}
+    guid_dict = {p.name.split('.')[0]: str(p.absolute()) for p in all_paths}
     return {**full_filename_dict, **guid_dict}
 
 def add_label_column(csv_filepath: str, label_column: str='label', default_label: str='chyron'):
