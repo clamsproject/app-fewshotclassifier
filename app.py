@@ -6,7 +6,6 @@ from typing import Union
 from clams import ClamsApp, Restifier
 from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
 
-from config import config
 import json
 
 import cv2
@@ -15,25 +14,23 @@ import faiss
 import build_index
 from transformers import CLIPProcessor, CLIPModel
 
+CSV_FILEPATH = "/Users/sam/Documents/clams_docs/chyron_gold.csv"
+INDEX_FILEPATH = "index/index.faiss"
+BUILD = False  # if BUILD get the build from csv file
 
 class Fewshotclassifier(ClamsApp):
 
     def __init__(self):
         super().__init__()
-        index_filepath = config["index_filepath"]
-        # if the value of "build" is true, get the csv filepath and call build_index
-        if config["build"]:
-            csv_filepath = config["csv_filepath"]
-            build_index.add_csv_to_index(
-                csv_filepath, index_filepath, index_filepath + "_map"
-            )
+        if BUILD:
+            build_index.add_csv_to_index(CSV_FILEPATH)
 
         # load the index
-        self.index = faiss.read_index(index_filepath)
-        self.index_map = json.load(open(index_filepath + "_map" + ".json", "r"))
+        self.index = faiss.read_index(INDEX_FILEPATH)
+        self.index_map = json.load(open(INDEX_FILEPATH + "_map" + ".json", "r"))
 
-        self.model = CLIPModel.from_pretrained(config["model_name"])
-        self.processor = CLIPProcessor.from_pretrained(config["model_name"])
+        self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
     def _appmetadata(self):
         # see https://sdk.clams.ai/autodoc/clams.app.html#clams.app.ClamsApp._load_appmetadata
@@ -53,14 +50,14 @@ class Fewshotclassifier(ClamsApp):
         faiss.normalize_L2(image_features_np)
         D, I = self.index.search(image_features_np, k=1)
 
-        print(self.index_map[str(I[0][0])], D[0][0])
+        self.logger.debug(self.index_map[str(I[0][0])], D[0][0])
 
         # get the labels from self.label_map
         labels_scores = []
         for i, score in zip(I[0], D[0]):
             if score > threshold:
                 labels_scores.append((self.index_map[str(i)], score))
-                print("=============IN TARGET=============")
+                self.logger.debug("=============IN TARGET=============")
             else:
                 labels_scores.append((None, None))
         return labels_scores
@@ -78,7 +75,7 @@ class Fewshotclassifier(ClamsApp):
         active_targets = {}  # keys are labels, values are dicts with "start_frame", "start_seconds", "target_scores"
         while True:
             if counter > 30 * 60 * cutoff_minutes:  # Stop processing after cutoff
-                print ("stopping at frmae number ", counter)
+                self.logger.debug("stopping at frmae number ", counter)
                 break
             frames = []
             frames_counter = []
@@ -94,7 +91,7 @@ class Fewshotclassifier(ClamsApp):
                 break
             # process batch of frames
             labels_scores = self.get_label(frames, threshold)
-            print(f"Frames: {frames_counter[0]} - {frames_counter[batch_size-1]}")
+            self.logger.debug(f"Frames: {frames_counter[0]} - {frames_counter[batch_size-1]}")
             for (detected_label, score), frame_counter in zip(labels_scores, frames_counter):
                 if detected_label is not None:  # has any label
                     if detected_label not in active_targets:

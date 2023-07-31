@@ -28,10 +28,8 @@ def appmetadata() -> AppMetadata:
         app_license="MIT",
         identifier="fewshotclassifier",
         url="https://github.com/clamsproject/app-fewshotclassifier",
-        # TODO (krim @ 7/31/23): model version? if not useing this field, I think the model version still needs to be specified somewhere.
-        analyzer_version="",
-        # TODO (krim @ 7/31/23): model license? 
-        analyzer_license="", 
+        analyzer_version="1.0",
+        analyzer_license="MIT",
     )
     metadata.add_input(DocumentTypes.VideoDocument, required=True)
     metadata.add_output(AnnotationTypes.TimeFrame, frameType='string')

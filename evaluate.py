@@ -8,7 +8,6 @@ import argparse
 import json
 import torch
 import cv2
-from config import config
 from sklearn.model_selection import KFold
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import average_precision_score
@@ -23,8 +22,8 @@ from transformers import CLIPProcessor, CLIPModel
 
 from utils import media_path_dict
 
-model = CLIPModel.from_pretrained(config["model_name"])
-processor = CLIPProcessor.from_pretrained(config["model_name"])
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
 def get_label(frame, threshold, index, index_map):
     # process the frame with the CLIP model
