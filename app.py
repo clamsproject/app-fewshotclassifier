@@ -5,6 +5,7 @@ from typing import Union
 # mostly likely you'll need these modules/classes
 from clams import ClamsApp, Restifier
 from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
+from mmif.utils import video_document_helper as vdh
 
 import json
 
@@ -14,7 +15,7 @@ import faiss
 import build_index
 from transformers import CLIPProcessor, CLIPModel
 
-CSV_FILEPATH = "/Users/sam/Documents/clams_docs/chyron_gold.csv"
+CSV_FILEPATH = "path/to/csv/file.csv"
 INDEX_FILEPATH = "index/index.faiss"
 BUILD = False  # if BUILD get the build from csv file
 
@@ -62,14 +63,14 @@ class Fewshotclassifier(ClamsApp):
                 labels_scores.append((None, None))
         return labels_scores
 
-    def run_targetdetection(self, video_filename, **kwargs):
+    def run_targetdetection(self, video_doc, **kwargs):
         sample_ratio = int(kwargs.get("sampleRatio", 10))
         min_duration = int(kwargs.get("minFrameCount", 10))
         threshold = 0.9 if "threshold" not in kwargs else float(kwargs["threshold"])
         batch_size = 10
-        cutoff_minutes = 10
+        cutoff_minutes = int(kwargs.get("cutoffMins"))
 
-        cap = cv2.VideoCapture(video_filename)
+        cap = vdh.capture(video_doc)
         counter = 0
         rich_timeframes = []
         active_targets = {}  # keys are labels, values are dicts with "start_frame", "start_seconds", "target_scores"
@@ -135,7 +136,7 @@ class Fewshotclassifier(ClamsApp):
 
     def _annotate(self, mmif: Union[str, dict, Mmif], **kwargs) -> Mmif:
         # load file location from mmif
-        video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
+        video_doc = mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0]
         config = self.get_configuration(**kwargs)
         unit = config["timeUnit"]
         new_view: View = mmif.new_view()
@@ -145,7 +146,7 @@ class Fewshotclassifier(ClamsApp):
             timeUnit=unit,
             document=mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0].id,
         )
-        timeframe_list = self.run_targetdetection(video_filename, **kwargs)
+        timeframe_list = self.run_targetdetection(video_doc, **kwargs)
         # add all the timeframes as annotations to the new view
         for timeframe in timeframe_list:
             # skip timeframes that are labeled as "None"

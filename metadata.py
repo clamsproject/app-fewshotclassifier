@@ -43,6 +43,7 @@ def appmetadata() -> AppMetadata:
                                        'with a minimum value of 1')
     metadata.add_parameter(name='threshold', type='number', default='.9',
                            description='Threshold from 0-1, lower accepts more potential labels.')
+    metadata.add_parameter(name='cutoffMins', type='integer', description='Maximum number of minutes to process')
 
     return metadata
 
