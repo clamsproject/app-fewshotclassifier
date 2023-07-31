@@ -23,11 +23,15 @@ def appmetadata() -> AppMetadata:
     
     # first set up some basic information
     metadata = AppMetadata(
-        name="Few Shot Classification",
+        name="Few Shot Classifier",
         description="This tool uses a vision model to classify video segments by comparing them to examples",
         app_license="MIT",
-        identifier="few_shot",
+        identifier="fewshotclassifier",
         url="https://github.com/clamsproject/app-fewshotclassifier",
+        # TODO (krim @ 7/31/23): model version? if not useing this field, I think the model version still needs to be specified somewhere.
+        analyzer_version="",
+        # TODO (krim @ 7/31/23): model license? 
+        analyzer_license="", 
     )
     metadata.add_input(DocumentTypes.VideoDocument, required=True)
     metadata.add_output(AnnotationTypes.TimeFrame, frameType='string')
@@ -51,4 +55,4 @@ if __name__ == '__main__':
     metadata = appmetadata()
     for param in ClamsApp.universal_parameters:
         metadata.add_parameter(**param)
-    sys.stdout.write(appmetadata().jsonify(pretty=True))
+    sys.stdout.write(metadata.jsonify(pretty=True))

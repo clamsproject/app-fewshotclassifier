@@ -1,4 +1,5 @@
 import argparse
+import logging
 from typing import Union
 
 # mostly likely you'll need these modules/classes
@@ -15,7 +16,7 @@ import build_index
 from transformers import CLIPProcessor, CLIPModel
 
 
-class Clip(ClamsApp):
+class Fewshotclassifier(ClamsApp):
 
     def __init__(self):
         super().__init__()
@@ -170,15 +171,14 @@ class Clip(ClamsApp):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--port", action="store", default="5000", help="set port to listen"
-    )
+    parser.add_argument("--port", action="store", default="5000", help="set port to listen")
     parser.add_argument("--production", action="store_true", help="run gunicorn server")
     parsed_args = parser.parse_args()
 
-    app = Clip()
+    app = Fewshotclassifier()
     http_app = Restifier(app, port=int(parsed_args.port))
     if parsed_args.production:
         http_app.serve_production()
     else:
+        app.logger.setLevel(logging.DEBUG)
         http_app.run()
