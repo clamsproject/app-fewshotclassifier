@@ -24,7 +24,7 @@ def appmetadata() -> AppMetadata:
     # first set up some basic information
     metadata = AppMetadata(
         name="Few Shot Classifier",
-        description="This tool uses a vision model to classify video segments by comparing them to examples",
+        description="This tool uses a vision model to classify video segments. Currenly supports \"chyron\" frame type.",
         app_license="MIT",
         identifier="fewshotclassifier",
         url="https://github.com/clamsproject/app-fewshotclassifier",
@@ -34,16 +34,25 @@ def appmetadata() -> AppMetadata:
     metadata.add_input(DocumentTypes.VideoDocument, required=True)
     metadata.add_output(AnnotationTypes.TimeFrame, frameType='string')
     
-    metadata.add_parameter(name='timeUnit', description='Unit for output timeframe',
-                           type='string', default='milliseconds', choices=['frames', 'milliseconds'])
-    metadata.add_parameter(name='sampleRatio', description='Frequency to sample frames.',
-                           type='integer', default='10')
-    metadata.add_parameter(name='minFrameCount', type='integer', default='10',
-                           description='Minimum number of frames required for a timeframe to be included in the output'
-                                       'with a minimum value of 1')
-    metadata.add_parameter(name='threshold', type='number', default='.9',
+    metadata.add_parameter(name='timeUnit', type='string', default='frames', 
+                           choices=['frames', 'milliseconds'],
+                           description='Unit for output timeframe')
+    metadata.add_parameter(name='sampleRatio', type='integer', default='30',
+                           description='Frequency to sample frames.')
+    metadata.add_parameter(name='minFrameCount', type='integer', default='60',
+                           description='Minimum number of frames required for a timeframe to be included in the '
+                                       'output with a minimum value of 1')
+    metadata.add_parameter(name='threshold', type='number', default='.8',
                            description='Threshold from 0-1, lower accepts more potential labels.')
-    metadata.add_parameter(name='cutoffMins', type='integer', description='Maximum number of minutes to process')
+    metadata.add_parameter(name='finetunedFrameType', type='string', default='chyron', 
+                           description='Name of fine-tuned model to use. All pre-installed models are named after '
+                                       'the frame type they were fine-tuned for.\n\nIf an empty value is passed, the '
+                                       'app will look for fewshots.csv file in the same directory as the app.py and '
+                                       'create a new fine-tuned model based on the examples in that file.\n\nAt '
+                                       'the moment, a model fine-tuned on "chyron" frame type is shipped as '
+                                       'pre-installed.')
+                           
+                           
 
     return metadata
 
