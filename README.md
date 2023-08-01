@@ -1,55 +1,20 @@
-# app-few-shot-classifier
 
-This repository provides a wrapper for using CLIP embeddings for few shot classification.
+# Fewshotclassifier
 
-1. `app.py` to write the app 
-1. `requirements.txt` to specify python dependencies
-1. `Containerfile` to containerize the app and specify system dependencies
-1. an empty `LICENSE` file to replace with an actual license information of the app
-1. this `README.md` file with basic instructions of app installation and execution
-1. some GH actions workflow for issue/bug-report management
-1. a GH actions workflow to build and upload app images upon any push of a git tag
+## Description
 
-Modify this file as needed to provide proper instructions for your users. 
+`fewshotclassifier` is a CLAMS app that implements a few-shot image classifier based on [OpenAI's CLIP model](https://openai.com/research/clip).
 
-## Requirements 
+## User instructions
 
-Generally, an CLAMS app requires 
+General user instructions for CLAMS apps is available at [CLAMS Apps documentation](https://apps.clams.ai/clamsapp).
 
-- Python3 with the `clams-python` module installed; to run the app locally. 
-- `docker`; to run the app in a Docker container (as a HTTP server).
-- A HTTP client utility (such as `curl`); to invoke and execute analysis.
+Below is a list of additional information specific to this app.
 
-## Building and running the Docker image
+### System requirements
 
-From the project directory, run the following in your terminal to build the Docker image from the included Dockerfile:
+TODO: describe GPU memory constrains (if any).
 
-```bash
-docker build . -f Dockerfile -t <app_name>
-```
+### Configurable runtime parameter
 
-Alternatively, the app maybe already be available on docker hub. 
-
-``` bash 
-docker pull <app_name>
-```
-
-Then to create a Docker container using that image, run:
-
-```bash
-docker run -v /path/to/data/directory:/data -p <port>:5000 <app_name>
-```
-
-where /path/to/data/directory is the location of your media files or MMIF objects and <port> is the *host* port number you want your container to be listening to. The HTTP inside the container will be listening to 5000 by default. 
-
-## Invoking the app
-Once the app is running as a HTTP server, to invoke the app and get automatic annotations, simply send a POST request to the app with a MMIF input as request body.
-
-MMIF input files can be obtained from outputs of other CLAMS apps, or you can create an empty MMIF only with source media locations using `clams source` command. See the help message for a more detailed instructions. 
-
-```bash
-clams source --help
-```
-
-(Make sure you installed the same `clams-python` package version specified in the [`requirements.txt`](requirements.txt).)
-
+For the full list of parameters, please refer to the app metadata from [CLAMS App Directory](https://apps.clams.ai) or [`metadata.py`](metadata.py) file in this repository.
