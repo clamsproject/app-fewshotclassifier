@@ -32,7 +32,7 @@ def add_video_segment_to_index(guid, start_time, end_time, label, index, label_m
     # todo - update this to process frames in batches
     # Generate the image embedding using the CLIP model
     with torch.no_grad():
-        image = processor.image_processor(frame, return_tensors="pt")
+        image = processor.image_processor(frame, return_tensors="pt", device="cuda" if torch.cuda.is_available() else "cpu")
         embedding = model.get_image_features(image["pixel_values"])
 
     # flatten the embedding

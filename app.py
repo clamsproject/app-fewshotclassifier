@@ -8,7 +8,7 @@ import cv2
 import faiss
 import torch
 from clams import ClamsApp, Restifier
-from mmif import Mmif, View, AnnotationTypes, DocumentTypes
+from mmif import Mmif, View, AnnotationTypes, DocumentTypes, Document
 from mmif.utils import video_document_helper as vdh
 from transformers import CLIPProcessor, CLIPModel
 
@@ -49,7 +49,7 @@ class Fewshotclassifier(ClamsApp):
                 labels_scores.append((None, None))
         return labels_scores
 
-    def run_targetdetection(self, vd, **conf):
+    def run_targetdetection(self, vd: Document, **conf):
         batch_size = 100
 
         # load the fine-tuned index
@@ -59,9 +59,15 @@ class Fewshotclassifier(ClamsApp):
         index_map = json.load(open(index_fpath.with_suffix(".json")))
         
         cap = vdh.capture(vd)
-        
-        # sample all frame numbers
-        frames_to_test = vdh.sample_frames(0, 30 * 60 * 60, conf['sampleRatio'])  # 1 hour video
+
+        if conf['finetunedFrameType'] == 'credits':
+            # For credits, we only need to sample the last 10 minutes
+            frames_to_test = vdh.sample_frames(
+                vd.get_property('duration') - vdh.convert(600, 's', 'f', vd.get_property('fps')),
+                vd.get_property('duration'), conf['sampleRatio'])
+        else:
+            # sample all frame numbers
+            frames_to_test = vdh.sample_frames(0, 30 * 60 * 60, conf['sampleRatio'])  # 1-hour video
 
         # then extract numpy array, label arrays in batches while extracting
         labels_scores = []
