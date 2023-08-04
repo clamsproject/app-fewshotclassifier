@@ -62,9 +62,10 @@ class Fewshotclassifier(ClamsApp):
 
         if conf['finetunedFrameType'] == 'credits':
             # For credits, we only need to sample the last 10 minutes
+            self.logger.debug("sampling last 10 minutes")
             frames_to_test = vdh.sample_frames(
-                vd.get_property('duration') - vdh.convert(600, 's', 'f', vd.get_property('fps')),
-                vd.get_property('duration'), conf['sampleRatio'])
+                int(vd.get_property('frameCount')) - int(vdh.convert(600, 's', 'f', vd.get_property('fps'))),
+                int(vd.get_property('frameCount')), conf['sampleRatio'])
         else:
             # sample all frame numbers
             frames_to_test = vdh.sample_frames(0, 30 * 60 * 60, conf['sampleRatio'])  # 1-hour video
