@@ -45,12 +45,7 @@ def appmetadata() -> AppMetadata:
     metadata.add_parameter(name='threshold', type='number', default='.8',
                            description='Threshold from 0-1, lower accepts more potential labels.')
     metadata.add_parameter(name='finetunedFrameType', type='string', default='chyron', 
-                           description='Name of fine-tuned model to use. All pre-installed models are named after '
-                                       'the frame type they were fine-tuned for.\n\nIf an empty value is passed, the '
-                                       'app will look for fewshots.csv file in the same directory as the app.py and '
-                                       'create a new fine-tuned model based on the examples in that file.\n\nAt '
-                                       'the moment, a model fine-tuned on "chyron" frame type is shipped as '
-                                       'pre-installed.')
+                           description='Name of fine-tuned model to use. All pre-installed models are named after the frame type they were fine-tuned for.\nIf an empty value is passed, the app will look for fewshots.csv file in the same directory as the app.py and create a new fine-tuned model based on the examples in that file.\nAt the moment, a model fine-tuned on "chyron" frame type is shipped as pre-installed.')
                            
                            
 
