@@ -38,14 +38,19 @@ class Fewshotclassifier(ClamsApp):
         image_features_np = image_features.detach().cpu().numpy()
         # calculate cosine similarity
         faiss.normalize_L2(image_features_np)
-        D, I = finetuning.search(image_features_np, k=1)
+        D, I = finetuning.search(image_features_np, k=len(finetuning_map))
 
         # get the labels from finetuning map
         labels_scores = []
-        for i, score in zip(I, D):
-            if score[0] > threshold:
-                labels_scores.append((finetuning_map[str(i[0])], score[0]))
-            else:
+        for idxs, scores in zip(I, D):
+            found = False
+            for idx, score in zip(idxs, scores):
+                if score > threshold and finetuning_map[str(idx)] is not None:
+                    print(threshold)
+                    labels_scores.append((finetuning_map[str(idx)], score))
+                    found = True
+                    break
+            if not found:
                 labels_scores.append((None, None))
         return labels_scores
 
@@ -58,13 +63,15 @@ class Fewshotclassifier(ClamsApp):
         index = faiss.read_index(str(index_fpath))
         index_map = json.load(open(index_fpath.with_suffix(".json")))
         
+        self.logger.debug(vd)
+        self.logger.debug(vd.location_path())
         cap = vdh.capture(vd)
 
         if conf['finetunedFrameType'] == 'credits':
             # For credits, we only need to sample the last 10 minutes
-            self.logger.debug("sampling last 10 minutes")
+            self.logger.debug("sampling last 5 minutes")
             frames_to_test = vdh.sample_frames(
-                int(vd.get_property('frameCount')) - int(vdh.convert(600, 's', 'f', vd.get_property('fps'))),
+                int(vd.get_property('frameCount')) - int(vdh.convert(300, 's', 'f', vd.get_property('fps'))),
                 int(vd.get_property('frameCount')), conf['sampleRatio'])
         else:
             # sample all frame numbers
@@ -96,7 +103,7 @@ class Fewshotclassifier(ClamsApp):
         self.logger.debug(f"input length: {len(frames_to_test)} / output length: {len(labels_scores)}")
         cur_frame = 0
         for (detected_label, score), cur_frame in zip(labels_scores, frames_to_test):
-            self.logger.debug(f"{detected_label}, {score}, at {cur_frame}")
+            self.logger.debug(f"{detected_label}, {score}, at {cur_frame} ({vdh.convert(cur_frame, 'f', 's', vd.get_property('fps'))})")
             if detected_label is not None:  # has any label
                 if not in_frame:
                     in_frame = True
